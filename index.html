@@ -1,0 +1,109 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sky-Fi Gemini</title>
+  <style>
+    body {
+      margin: 0; font-family: 'Segoe UI', sans-serif; background: #121212; color: #fff;
+      display: flex; flex-direction: column; height: 100vh;
+    }
+    header {
+      background: #1f1f1f; padding: 1rem; text-align: center; font-size: 1.5rem;
+      border-bottom: 1px solid #333;
+    }
+    #chat {
+      flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column;
+    }
+    .msg {
+      max-width: 70%; margin: 0.3rem 0; padding: 0.7rem 1rem;
+      border-radius: 1rem; line-height: 1.4;
+    }
+    .user { align-self: flex-end; background: #3a3a3a; }
+    .bot { align-self: flex-start; background: #2e6bcc; }
+    #inputBox {
+      display: flex; padding: 0.8rem; background: #1c1c1c; border-top: 1px solid #333;
+    }
+    #message {
+      flex: 1; padding: 0.6rem; border-radius: 1rem; border: none; outline: none;
+    }
+    #send, #mic {
+      margin-left: 0.5rem; background: #2e6bcc; color: #fff; border: none;
+      border-radius: 50%; width: 40px; height: 40px; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <header>Sky-Fi Gemini</header>
+  <div id="chat"></div>
+  <div id="inputBox">
+    <input type="text" id="message" placeholder="Ask something..."/>
+    <button id="mic">🎤</button>
+    <button id="send">➤</button>
+  </div>
+
+  <script>
+    const chat = document.getElementById('chat');
+    const input = document.getElementById('message');
+    const send = document.getElementById('send');
+    const mic = document.getElementById('mic');
+
+    // ⏪ Load saved history
+    window.onload = () => {
+      const history = JSON.parse(localStorage.getItem('skyfi-chat') || '[]');
+      history.forEach(msg => addMessage(msg.text, msg.sender, false));
+    };
+
+    function addMessage(text, sender, save = true) {
+      const msg = document.createElement('div');
+      msg.className = 'msg ' + sender;
+      msg.textContent = text;
+      chat.appendChild(msg);
+      chat.scrollTop = chat.scrollHeight;
+
+      if (save) {
+        const history = JSON.parse(localStorage.getItem('skyfi-chat') || '[]');
+        history.push({ text, sender });
+        localStorage.setItem('skyfi-chat', JSON.stringify(history));
+      }
+
+     
+    }
+
+    send.onclick = () => {
+      const msg = input.value.trim();
+      if (!msg) return;
+      addMessage(msg, 'user');
+      input.value = '';
+
+      fetch('http://localhost:3000/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+      })
+      .then(res => res.json())
+      .then(data => addMessage(data.reply, 'bot'))
+      .catch(err => addMessage('Error: ' + err.message, 'bot'));
+    };
+
+    // 🎙️ Voice input
+    let recognition;
+    if ('webkitSpeechRecognition' in window) {
+      recognition = new webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.lang = 'en-IN';
+
+      recognition.onresult = event => {
+        input.value = event.results[0][0].transcript;
+      };
+    }
+
+    mic.onclick = () => {
+      if (recognition) recognition.start();
+      else alert("Speech recognition not supported.");
+    };
+  </script>
+</body>
+</html>
